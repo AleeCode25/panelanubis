@@ -28,23 +28,23 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Usuario no encontrado en Ganamos" }, { status: 404 });
     }
 
-    // 2. Realizar la transferencia de regalo en Ganamos
-    // Ganamos usa el endpoint de transferencia para acreditar fondos
-    const ganamosResponse = await fetchGanamosAPI(`/api/agent_admin/transfer/`, {
+    // 2. Realizar la carga usando el endpoint de /payment/
+    // La estructura requerida según tu curl es: /api/agent_admin/user/{userId}/payment/
+    const ganamosResponse = await fetchGanamosAPI(`/api/agent_admin/user/${userId}/payment/`, {
       method: 'POST',
       body: JSON.stringify({
-        user_id: userId,
-        amount: monto,
-        type: "DEPOSIT", // O el tipo correcto según tu integración de Ganamos
-        comment: `Regalo especial: ${tipo}`
+        operation: 0, // 0 parece ser el código para ingreso/carga
+        amount: monto
       })
     });
 
-    if (ganamosResponse && ganamosResponse.status !== 0) {
-      return NextResponse.json({ error: `Ganamos rechazó: ${ganamosResponse.error_message}` }, { status: 400 });
+    // 3. Verificamos respuesta
+    // Si la API devuelve un objeto con error o un status distinto al esperado
+    if (ganamosResponse && ganamosResponse.error) {
+      return NextResponse.json({ error: `Ganamos rechazó: ${ganamosResponse.error_message || "Error desconocido"}` }, { status: 400 });
     }
 
-    // 3. Registrar en nuestra BD
+    // 4. Registrar en nuestra BD
     const timestamp = Date.now();
     await Transferencia.create({
       remitente: tipo,
