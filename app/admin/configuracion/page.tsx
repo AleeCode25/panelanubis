@@ -4,13 +4,14 @@ import Link from 'next/link';
 import Swal from 'sweetalert2';
 
 export default function ConfiguracionAPI() {
+  // Nota: Mantenemos el nombre de la variable 'zeusToken' para no romper la lógica de la API,
+  // pero el usuario verá "Ganamos" en la pantalla.
   const [zeusToken, setZeusToken] = useState('');
   const [walletToken, setWalletToken] = useState('');
   const [walletAccountId, setWalletAccountId] = useState('');
-  const [bonoPorcentaje, setBonoPorcentaje] = useState('0'); // Nuevo estado para el bono
+  const [bonoPorcentaje, setBonoPorcentaje] = useState('0');
   const [loading, setLoading] = useState(true);
 
-  // Cargar los datos al abrir
   useEffect(() => {
     fetch('/api/admin/config')
       .then(res => res.json())
@@ -19,14 +20,13 @@ export default function ConfiguracionAPI() {
           setZeusToken(data.zeusToken || '');
           setWalletToken(data.walletToken || '');
           setWalletAccountId(data.walletAccountId || '');
-          setBonoPorcentaje(data.bonoPorcentaje || '0'); // Seteamos el bono guardado
+          setBonoPorcentaje(data.bonoPorcentaje || '0');
         }
         setLoading(false);
       });
   }, []);
 
   const handleSave = async () => {
-    // Validación rápida para que no pongan locuras
     if (Number(bonoPorcentaje) < 0 || Number(bonoPorcentaje) > 1000) {
       return Swal.fire('Error', 'El bono debe ser un número entre 0 y 1000', 'error');
     }
@@ -57,7 +57,6 @@ export default function ConfiguracionAPI() {
 
           <div className="space-y-6">
             
-            {/* 👇 NUEVA CAJA DEL BONO 👇 */}
             <div className="bg-blue-900/20 border border-blue-500/30 p-5 rounded-2xl">
               <label className="text-[10px] font-black text-blue-400 uppercase block mb-2 tracking-widest">Bono Dinámico Actual (%)</label>
               <p className="text-xs text-gray-400 mb-3">Aplica a clientes recurrentes en Autocarga. (Clientes nuevos reciben 20% fijo).</p>
@@ -70,14 +69,14 @@ export default function ConfiguracionAPI() {
                 placeholder="Ej: 15"
               />
             </div>
-            {/* 👆 ================= 👆 */}
 
             <div>
-              <label className="text-[10px] font-black text-gray-500 uppercase block mb-2 tracking-widest">Zeus Bearer Token</label>
+              {/* CAMBIO AQUÍ: Etiqueta y placeholder actualizados */}
+              <label className="text-[10px] font-black text-gray-500 uppercase block mb-2 tracking-widest">Ganamos Bearer Token</label>
               <textarea 
                 value={zeusToken} onChange={e => setZeusToken(e.target.value)}
                 className="w-full bg-gray-800 border border-gray-700 p-4 rounded-2xl text-xs font-mono text-gray-300 outline-none h-24"
-                placeholder="Pegá el token de Zeus acá..."
+                placeholder="Pegá el token de Ganamos acá..."
               />
             </div>
 
