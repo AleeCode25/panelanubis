@@ -7,7 +7,7 @@ const TransferenciaSchema = new mongoose.Schema({
   remitente: { type: String, required: true },
   cuit: { type: String, required: true },
   estado: { type: String, default: "PENDIENTE" }, 
-  cajeroAsignado: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null }, 
+  cajeroAsignado: { type: mongoose.Schema.Types.ObjectId, ref: 'UserGanamos', default: null }, 
   usuarioCasino: { type: String, default: null },
   conBono: { type: Boolean, default: false },
   montoBono: { type: Number, default: 0 },
