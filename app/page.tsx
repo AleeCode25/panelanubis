@@ -13,7 +13,7 @@ import HistorialUsuarioModal from '@/components/HistorialUsuarioModal';
 import Link from 'next/link';
 
 export default function Home() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession({ required: true });
   const prevPendientes = useRef(0)
   const [pendientes, setPendientes] = useState([]);
   const [realizadas, setRealizadas] = useState([]);
@@ -204,6 +204,11 @@ export default function Home() {
     setSelectedTransfer(null);
     fetchData();
   };
+
+  // Opcional: Mostrar una pantalla de carga real mientras verifica
+  if (status === "loading") {
+    return <div className="min-h-screen bg-gray-950 flex items-center justify-center text-white font-black uppercase">Cargando Panel...</div>;
+  }
 
   return (
     <main className="min-h-screen bg-gray-950 text-white p-4 md:p-8 font-sans tracking-tight">

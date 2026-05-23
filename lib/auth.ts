@@ -2,9 +2,10 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import dbConnect from "@/lib/mongodb";
-import User from "@/models/User";
+// 👇 1. IMPORTAMOS EL MODELO NUEVO (UserGanamos)
+import UserGanamos from "@/models/UserGanamos"; 
 import bcrypt from "bcryptjs";
-import { getGanamosSessionToken } from "@/lib/ganamosApi"; // <-- 1. IMPORTAMOS EL MOTOR
+import { getGanamosSessionToken } from "@/lib/ganamosApi";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -18,7 +19,6 @@ export const authOptions: NextAuthOptions = {
         try {
           await dbConnect();
           
-          // Aceptamos ambos nombres para evitar el "undefined"
           const loginName = credentials?.usuario || (credentials as any)?.username;
           
           if (!loginName) {
@@ -28,8 +28,8 @@ export const authOptions: NextAuthOptions = {
 
           console.log("🔑 Intentando login para:", loginName);
 
-          // Buscamos al usuario por cualquiera de los dos campos (por si hay viejos)
-          const user = await User.findOne({
+          // 👇 2. BUSCAMOS EN LA COLECCIÓN NUEVA
+          const user = await UserGanamos.findOne({
             $or: [ { usuario: loginName }, { username: loginName } ]
           });
 
@@ -46,16 +46,12 @@ export const authOptions: NextAuthOptions = {
 
           console.log("✅ Login exitoso para:", user.nombre);
           
-          // --- 2. ACÁ DISPARAMOS LA MAGIA DE GANAMOS ---
-          // Al ponerlo sin 'await' (o manejando el error internamente), 
-          // no frenamos el login del cajero si el casino tarda en responder.
           try {
             console.log("⚙️ Verificando token de Ganamos en segundo plano...");
             await getGanamosSessionToken(); 
           } catch (ganamosError) {
             console.error("⚠️ Error actualizando token de Ganamos durante login:", ganamosError);
           }
-          // ---------------------------------------------
 
           return { 
             id: user._id.toString(), 
@@ -72,6 +68,7 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async jwt({ token, user }: any) {
+      // Cuando el usuario recién se loguea, metemos sus datos en el token
       if (user) {
         token.id = user.id;
         token.role = user.role;
@@ -81,11 +78,12 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
     async session({ session, token }: any) {
-      if (token) {
-        session.user.id = token.id;
-        session.user.role = token.role;
-        session.user.canPay = token.canPay;
-        session.user.name = token.name;
+      // 👇 3. PASAMOS LOS DATOS DEL TOKEN A LA SESIÓN FRONTEND
+      if (token && session.user) {
+        (session.user as any).id = token.id;
+        (session.user as any).role = token.role;
+        (session.user as any).canPay = token.canPay;
+        session.user.name = token.name as string;
       }
       return session;
     }
