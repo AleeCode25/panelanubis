@@ -15,9 +15,9 @@ export async function GET(req: Request) {
 
     // 👇 Buscamos exactamente la clave "ganamos_session" que mostraste en la BD
     const ganamosToken = await Config.findOne({ key: "ganamos_session" });
-    const wallet = await Config.findOne({ key: "WALLET_TOKEN" });
-    const account = await Config.findOne({ key: "WALLET_ACCOUNT_ID" });
-    const bono = await Config.findOne({ key: "BONO_PORCENTAJE" }); 
+    const wallet = await Config.findOne({ key: "WALLET_TOKEN_GANAMOS" });
+    const account = await Config.findOne({ key: "WALLET_ACCOUNT_ID_GANAMOS" });
+    const bono = await Config.findOne({ key: "BONO_PORCENTAJE_GANAMOS" }); 
 
     return NextResponse.json({
       zeusToken: ganamosToken?.value || "", // Usamos zeusToken para que el frontend lo entienda sin tocarlo
@@ -46,13 +46,13 @@ export async function POST(req: Request) {
       await Config.findOneAndUpdate({ key: "ganamos_session" }, { value: zeusToken }, { upsert: true });
     }
     if (walletToken !== undefined) {
-      await Config.findOneAndUpdate({ key: "WALLET_TOKEN" }, { value: walletToken }, { upsert: true });
+      await Config.findOneAndUpdate({ key: "WALLET_TOKEN_GANAMOS" }, { value: walletToken }, { upsert: true });
     }
     if (walletAccountId !== undefined) {
-      await Config.findOneAndUpdate({ key: "WALLET_ACCOUNT_ID" }, { value: walletAccountId }, { upsert: true });
+      await Config.findOneAndUpdate({ key: "WALLET_ACCOUNT_ID_GANAMOS" }, { value: walletAccountId }, { upsert: true });
     }
     if (bonoPorcentaje !== undefined) {
-      await Config.findOneAndUpdate({ key: "BONO_PORCENTAJE" }, { value: String(bonoPorcentaje) }, { upsert: true }); 
+      await Config.findOneAndUpdate({ key: "BONO_PORCENTAJE_GANAMOS" }, { value: String(bonoPorcentaje) }, { upsert: true }); 
     }
 
     return NextResponse.json({ success: true });

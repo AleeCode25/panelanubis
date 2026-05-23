@@ -50,7 +50,7 @@ export async function POST(req: Request, { params }: any) {
         if (cargasPrevias === 0) {
             porcentajeAAplicar = 20;
         } else {
-            const configBono = await Config.findOne({ key: "BONO_PORCENTAJE" });
+            const configBono = await Config.findOne({ key: "BONO_PORCENTAJE_GANAMOS" });
             porcentajeAAplicar = Number(configBono?.value) || 0;
         }
 

@@ -13,8 +13,8 @@ export async function POST(req: Request) {
 
     const { toCBU, amount } = await req.json();
 
-    const configToken = await Config.findOne({ key: "WALLET_TOKEN" });
-    const configAccount = await Config.findOne({ key: "WALLET_ACCOUNT_ID" });
+    const configToken = await Config.findOne({ key: "WALLET_TOKEN_GANAMOS" });
+    const configAccount = await Config.findOne({ key: "WALLET_ACCOUNT_ID_GANAMOS" });
 
     if (!configToken?.value || !configAccount?.value) {
       return NextResponse.json({ error: "Billetera no configurada en Ajustes" }, { status: 500 });
