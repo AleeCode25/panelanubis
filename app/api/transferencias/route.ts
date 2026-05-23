@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import Transferencia from "@/models/Transferencia";
-import User from "@/models/User"; // <-- SÚPER IMPORTANTE PARA QUE NO FALLE EL POPULATE
 
 // 🔥 Esto le dice a Vercel/Next.js: "No me congeles esta ruta, los datos cambian todo el tiempo"
 export const dynamic = 'force-dynamic';

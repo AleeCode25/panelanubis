@@ -1,7 +1,7 @@
 // app/api/admin/users/[id]/route.ts
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
-import User from "@/models/User";
+import UserGanamos from "@/models/UserGanamos";
 import bcrypt from "bcryptjs";
 
 export async function PATCH(req: Request, { params }: any) {
@@ -15,7 +15,7 @@ export async function PATCH(req: Request, { params }: any) {
       updateData.password = await bcrypt.hash(password, 10);
     }
 
-    await User.findByIdAndUpdate(id, updateData);
+    await UserGanamos.findByIdAndUpdate(id, updateData);
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ error: "Error al actualizar" }, { status: 500 });
@@ -25,6 +25,6 @@ export async function PATCH(req: Request, { params }: any) {
 export async function DELETE(req: Request, { params }: any) {
   await dbConnect();
   const { id } = await params;
-  await User.findByIdAndDelete(id);
+  await UserGanamos.findByIdAndDelete(id);
   return NextResponse.json({ success: true });
 }

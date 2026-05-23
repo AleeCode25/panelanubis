@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
-import User from "@/models/User";
 import bcrypt from "bcryptjs";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import UserGanamos from "@/models/UserGanamos";
 
 export async function GET() {
   try {
@@ -14,7 +14,7 @@ export async function GET() {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    const users = await User.find({}).select("-password").sort({ createdAt: -1 });
+    const users = await UserGanamos.find({}).select("-password").sort({ createdAt: -1 });
     return NextResponse.json(users);
   } catch (error) {
     return NextResponse.json({ error: "Error al obtener usuarios" }, { status: 500 });
@@ -28,7 +28,7 @@ export async function POST(req: Request) {
     // 🔥 EL FIX MÁGICO PARA EL ERROR E11000:
     // Le decimos a MongoDB que borre la regla vieja de "username" si todavía existe
     try {
-      await User.collection.dropIndex("username_1");
+      await UserGanamos.collection.dropIndex("username_1");
       console.log("🧹 Índice viejo 'username_1' eliminado de la base de datos.");
     } catch (indexError) {
       // Lo ignoramos, significa que ya se borró antes.
@@ -48,14 +48,14 @@ export async function POST(req: Request) {
     }
 
     // Verificar si el usuario nuevo ya existe (usando el campo correcto)
-    const existe = await User.findOne({ usuario });
+    const existe = await UserGanamos.findOne({ usuario });
     if (existe) {
       return NextResponse.json({ error: "El nombre de usuario ya existe" }, { status: 400 });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const nuevoUsuario = await User.create({
+    const nuevoUsuario = await UserGanamos.create({
       nombre,
       usuario,
       password: hashedPassword,
