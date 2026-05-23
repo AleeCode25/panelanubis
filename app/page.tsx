@@ -13,7 +13,8 @@ import HistorialUsuarioModal from '@/components/HistorialUsuarioModal';
 import Link from 'next/link';
 
 export default function Home() {
-  const { data: session, status } = useSession({ required: true });
+  // 👇 Le sacamos el required: true para que no se quede bloqueado
+  const { data: session, status } = useSession(); 
   const prevPendientes = useRef(0)
   const [pendientes, setPendientes] = useState([]);
   const [realizadas, setRealizadas] = useState([]);
@@ -31,7 +32,6 @@ export default function Home() {
   const [tab, setTab] = useState('pendientes');
   const [searchTerm, setSearchTerm] = useState('');
 
-  // 👇 FILTROS MÚLTIPLES: Arrancan todos encendidos
   const [filtrosRealizadas, setFiltrosRealizadas] = useState<string[]>(['CARGAS', 'RETIROS', 'PAGOS', 'ESPECIALES']);
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
@@ -59,17 +59,19 @@ export default function Home() {
   };
 
   useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 30000);
-    return () => clearInterval(interval);
-  }, []);
+    // Solo hacemos fetch de datos si el usuario está autenticado
+    if (status === "authenticated") {
+      fetchData();
+      const interval = setInterval(fetchData, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [status]);
 
-  // 👇 Función para prender o apagar un filtro
   const toggleFiltro = (filtro: string) => {
     setFiltrosRealizadas(prev => 
       prev.includes(filtro) ? prev.filter(f => f !== filtro) : [...prev, filtro]
     );
-    setCurrentPage(1); // Volvemos a la página 1 al filtrar
+    setCurrentPage(1); 
   };
 
   const filteredPendientes = pendientes.filter((t: any) =>
@@ -78,7 +80,6 @@ export default function Home() {
     t.coelsaCode?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // 👇 Aplicamos Filtros Múltiples
   const filteredRealizadas = realizadas.filter((t: any) => {
     const matchesSearch = t.remitente?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       t.usuarioCasino?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -205,9 +206,19 @@ export default function Home() {
     fetchData();
   };
 
-  // Opcional: Mostrar una pantalla de carga real mientras verifica
+  // 👇 Manejo seguro de la sesión
   if (status === "loading") {
-    return <div className="min-h-screen bg-gray-950 flex items-center justify-center text-white font-black uppercase">Cargando Panel...</div>;
+    return (
+      <div className="min-h-screen bg-gray-950 flex flex-col items-center justify-center text-white">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mb-4"></div>
+        <p className="font-black uppercase tracking-widest text-gray-500 text-xs">Conectando...</p>
+      </div>
+    );
+  }
+
+  if (status === "unauthenticated") {
+    if (typeof window !== "undefined") window.location.href = "/login";
+    return null;
   }
 
   return (
@@ -215,7 +226,7 @@ export default function Home() {
       <div className="max-w-7xl mx-auto mb-8 flex flex-col md:flex-row justify-between items-center bg-gray-900 p-6 rounded-3xl border border-gray-800 shadow-2xl gap-4">
         <div>
           <h1 className="text-2xl font-black text-blue-500 italic uppercase">Panel</h1>
-          <p className="text-gray-400 text-[10px] uppercase font-bold tracking-widest">Cajero: <span className="text-white">{session?.user?.name || "Cargando..."}</span></p>
+          <p className="text-gray-400 text-[10px] uppercase font-bold tracking-widest">Cajero: <span className="text-white">{session?.user?.name || "Desconocido"}</span></p>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap justify-center relative">
@@ -273,7 +284,6 @@ export default function Home() {
           <button onClick={() => { setTab('realizadas'); setCurrentPage(1); }} className={`pb-4 px-2 transition-all ${tab === 'realizadas' ? 'border-b-2 border-green-500 text-green-500' : 'text-gray-500'}`}>Realizadas ({filteredRealizadas.length})</button>
         </div>
 
-        {/* 👇 BOTONES INTERRUPTORES (MÚLTIPLE SELECCIÓN) */}
         {tab === 'realizadas' && (
           <div className="flex flex-wrap gap-2 mb-6">
             <button 
