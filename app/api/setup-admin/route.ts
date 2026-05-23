@@ -1,25 +1,32 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
-import User from "@/models/User";
+// 👇 IMPORTANTE: Importamos el nuevo modelo de Ganamos
+import UserGanamos from "@/models/UserGanamos"; 
 import bcrypt from "bcryptjs";
 
 export async function GET() {
-  await dbConnect();
-  
-  // Verificamos si ya existe un admin para no duplicar
-  const adminExists = await User.findOne({ username: "admin" });
-  if (adminExists) return NextResponse.json({ msg: "Admin ya existe" });
+  try {
+    await dbConnect();
+    
+    // Verificamos si ya existe el admin buscando por "usuario" (el campo correcto)
+    const adminExists = await UserGanamos.findOne({ usuario: "adminsito" });
+    if (adminExists) {
+      return NextResponse.json({ msg: "El Admin ya existe en la nueva base de datos." });
+    }
 
-  const hashedPassword = await bcrypt.hash("Prime2026@", 10); // CAMBIA ESTO LUEGO
-  
-  await User.create({
-    username: "adminsito",
-    usuario: "adminsito",
-    password: hashedPassword,
-    nombre: "El Admin",
-    canPay: true,
-    role: "ADMIN"
-  });
+    const hashedPassword = await bcrypt.hash("Prime2026@", 10);
+    
+    // Creamos el admin en la colección 'users_ganamos'
+    await UserGanamos.create({
+      usuario: "adminsito", // Usamos solo 'usuario' como dice tu esquema
+      password: hashedPassword,
+      nombre: "El Admin",
+      canPay: true,
+      role: "ADMIN"
+    });
 
-  return NextResponse.json({ msg: "Admin creado con éxito. User: admin, Pass: Prime2026@" });
+    return NextResponse.json({ msg: "Admin creado con éxito. User: adminsito, Pass: Prime2026@" });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 }
