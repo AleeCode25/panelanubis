@@ -2,7 +2,7 @@ import Config from "@/models/Config";
 
 export async function getValidGanamosToken() {
   // 1. Buscamos el token actual en la DB
-  let config = await Config.findOne({ key: "GANAMOS_TOKEN" });
+  let config = await Config.findOne({ key: "ganamos_session" });
   let rawToken = config?.value || "";
   // Quitamos el prefijo "session=" si existe para poder decodificar el JWT
   let token = rawToken.startsWith("session=") ? rawToken.replace("session=", "") : rawToken;
@@ -68,7 +68,7 @@ export async function getValidGanamosToken() {
         config.value = newToken;
         await config.save();
       } else {
-        await Config.create({ key: "GANAMOS_TOKEN", value: newToken });
+        await Config.create({ key: "ganamos_session", value: newToken });
       }
 
       console.log("✅ Nuevo token de Ganamos guardado en DB.");
