@@ -22,7 +22,7 @@ export async function POST(req: Request, { params }: any) {
     let esAutocarga = false;
 
     if (apiSecret && apiSecret === CLAVE_SECRETA_BACKEND) {
-        cajeroId = "69f3fdfc26d70c5c586f746f"; 
+        cajeroId = "6a162fede376e16ae1355714"; 
         esAutocarga = true;
     } else if (session && session.user) {
         cajeroId = (session.user as any).id;
