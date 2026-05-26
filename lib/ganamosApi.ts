@@ -3,7 +3,7 @@ import Config from "@/models/Config";
 
 // Tus credenciales maestras de Ganamos (idealmente ponelas en tu .env)
 const GANAMOS_USER = process.env.GANAMOS_USER || "Anubis031";
-const GANAMOS_PASS = process.env.GANAMOS_PASS || "alan123";
+const GANAMOS_PASS = process.env.GANAMOS_PASS || "Fortuna1511_";
 
 // Los headers estrictos que sacamos del bash para que no nos tire error de request_from
 const GANAMOS_HEADERS = {
@@ -61,9 +61,9 @@ export async function getGanamosSessionToken() {
 
     const tokenExtraido = `session=${sessionMatch[1]}`;
 
-    // Calculamos vencimiento a 15 días
+    // Calculamos vencimiento a 4 horas
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 15);
+    expiresAt.setHours(expiresAt.getHours() + 4);
 
     // 4. Guardamos en MongoDB
     await Config.findOneAndUpdate(
@@ -75,7 +75,7 @@ export async function getGanamosSessionToken() {
       { upsert: true, new: true }
     );
 
-    console.log("💾 Nuevo token de Ganamos guardado por 15 días");
+    console.log("💾 Nuevo token de Ganamos guardado por 4 horas");
     return tokenExtraido;
 
   } catch (error) {
