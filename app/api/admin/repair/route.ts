@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import Config from "@/models/Config";
-import { getValidGanamosToken } from "@/lib/auth"; // O de donde sea que importes tu generador de token
+import { getValidGanamosToken } from "@/lib/ganamosAuth"; // Importamos el helper
 
 export async function POST() {
   try {
