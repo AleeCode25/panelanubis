@@ -40,7 +40,7 @@ export default function CrearUsuarioModal({ onClose }: { onClose: () => void }) 
 
   const handleCopy = () => {
     // CAMBIO: Link y textos ajustados para Ganamos
-    const texto = `Te dejo tu nuevo usuario para GanamosNet:\n\nUsuario: ${username}\nContraseña: ${password}\n\nLink de la plataforma: https://ganamosnet.org\n\nCARGA MINIMA: $2.000\nRETIRO MINIMO: $5.000\nCARGAS & RETIROS 24HS SIN LIMITES`;
+    const texto = `Te dejo tu nuevo usuario para GanamosNet:\n\nUsuario: ${username}\nContraseña: ${password}\n\nLink de la plataforma: https://ganamosnet.win\n\nCARGA MINIMA: $2.000\nRETIRO MINIMO: $5.000\nCARGAS & RETIROS 24HS SIN LIMITES`;
     
     navigator.clipboard.writeText(texto);
     Swal.fire({

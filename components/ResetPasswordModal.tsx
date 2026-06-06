@@ -45,7 +45,7 @@ export default function ResetPasswordModal({ onClose }: { onClose: () => void })
 
   const handleCopy = () => {
     const claveFinal = password.trim() || '12345678';
-    const texto = `Te dejo tu usuario y contraseña :\n\nUsuario : ${username.toLowerCase()}\nContraseña : ${claveFinal}\n\nLink de la plataforma: https://casinozeus.tech \n\nCARGA MINIMA: $2.000\nRETIRO MINIMO: $5.000\nCARGAS & RETIROS 24HS SIN LIMITES`;
+    const texto = `Te dejo tu usuario y contraseña :\n\nUsuario : ${username.toLowerCase()}\nContraseña : ${claveFinal}\n\nLink de la plataforma: https://ganamosnet.win \n\nCARGA MINIMA: $2.000\nRETIRO MINIMO: $5.000\nCARGAS & RETIROS 24HS SIN LIMITES`;
     
     navigator.clipboard.writeText(texto);
     Swal.fire({
