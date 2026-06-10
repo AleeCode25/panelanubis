@@ -30,11 +30,25 @@ export async function POST(req: Request, { params }: any) {
         return NextResponse.json({ error: "No autorizado." }, { status: 401 });
     }
 
+    // 1. BUSQUEDA DE TRANSFERENCIA
     const transferencia = await Transferencia.findById(id);
     if (!transferencia) return NextResponse.json({ error: "No se encontró la transferencia." }, { status: 404 });
 
+    // 2. PREVENCIÓN DE DOBLE CARGA: Si ya está CARGADA, no hacer nada
+    if (transferencia.estado === "CARGADA") {
+        return NextResponse.json({ error: "Esta carga ya fue procesada anteriormente." }, { status: 400 });
+    }
+
+    // 3. BLOQUEO TEMPORAL: Marcamos como EN_PROCESO para evitar peticiones simultáneas
+    transferencia.estado = "EN_PROCESO";
+    await transferencia.save();
+
     const usuarioFinal = usuarioDelModal || transferencia.usuarioCasino;
-    if (!usuarioFinal) return NextResponse.json({ error: "Debes ingresar un Usuario de Casino." }, { status: 400 });
+    if (!usuarioFinal) {
+        transferencia.estado = "PENDIENTE";
+        await transferencia.save();
+        return NextResponse.json({ error: "Debes ingresar un Usuario de Casino." }, { status: 400 });
+    }
 
     const safeUsername = usuarioFinal.trim().toLowerCase();
     const montoBase = Number(transferencia.monto);
@@ -67,8 +81,6 @@ export async function POST(req: Request, { params }: any) {
     const saldoData = await getUsuarioSaldo(safeUsername);
     const userId = saldoData.id;
 
-    // PREPARACIÓN DE PAGO ESTRICTA
-    // Convertimos todo a Number y usamos parseFloat para asegurar formato decimal
     let paymentBody: any = { 
         operation: 0, 
         amount: parseFloat(montoBase.toString()) 
@@ -91,12 +103,15 @@ export async function POST(req: Request, { params }: any) {
     });
 
     if (ganamosRes.status !== 0) {
+        // Si falla Ganamos, liberamos el estado a PENDIENTE para que el admin pueda reintentar
+        transferencia.estado = "PENDIENTE";
+        await transferencia.save();
         return NextResponse.json({ 
             error: `Ganamos rechazó: ${ganamosRes.error_message || 'Error desconocido'}` 
         }, { status: 400 });
     }
 
-    // --- ACTUALIZACIÓN EN DB ---
+    // --- ACTUALIZACIÓN FINAL EN DB ---
     transferencia.estado = "CARGADA";
     transferencia.usuarioCasino = safeUsername;
     transferencia.fechaCarga = new Date();
