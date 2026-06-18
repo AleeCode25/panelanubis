@@ -58,27 +58,36 @@ export async function getGanamosSessionToken() {
 }
 
 export async function fetchGanamosAPI(endpoint: string, options: RequestInit = {}) {
-  const token = await getGanamosSessionToken();
-  const fullCookies = `${HARDCODED_TRACKING_COOKIES}; ${token}`; 
+  const token = await getValidGanamosToken();
+  const sessionCookie = token.startsWith('session=') ? token : `session=${token}`;
+  let currentCookies = `${HARDCODED_TRACKING_COOKIES}; ${sessionCookie}`; 
 
-  // Combinamos las opciones pasadas (method, body, etc) con nuestros headers y cookies
   const finalOptions: RequestInit = {
-    ...options, // <--- ACÁ SE RECIBE EL METHOD: 'POST' Y EL BODY
-    headers: { 
-      ...GANAMOS_HEADERS, 
-      ...options.headers, // Combinamos con headers específicos si los hay
-      'Cookie': fullCookies 
+    ...options,
+    headers: {
+      ...GANAMOS_HEADERS,
+      ...options.headers,
+      'Cookie': currentCookies
     },
-    redirect: 'manual'
+    // Quitamos 'manual' para dejar que la red de Hostinger maneje la conexión inicial
+    // pero mantenemos el control manual si hay bloqueos
+    redirect: 'follow' 
   };
 
-  const response = await fetch(`https://agents.ganamosnet.org${endpoint}`, finalOptions);
+  const url = `https://agents.ganamosnet.org${endpoint}`;
+  const response = await fetch(url, finalOptions);
+  
+  // Si Hostinger recibe un 403 o 406, es bloqueo de firewall.
+  if (response.status === 403 || response.status === 406) {
+     console.error("🚨 BLOQUEO DE HOSTINGER DETECTADO:", await response.text());
+     throw new Error(`Ganamos bloqueó tu servidor (Error ${response.status})`);
+  }
 
   const text = await response.text();
   try {
     return JSON.parse(text);
   } catch {
-    throw new Error(`Error: ${response.status} - ${text.substring(0, 50)}`);
+    throw new Error(`Error en respuesta: ${response.status} - ${text.substring(0, 50)}`);
   }
 }
 
