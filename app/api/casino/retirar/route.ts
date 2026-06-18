@@ -14,27 +14,33 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { username, amount } = body;
 
-    if (!username || !amount || amount <= 0) {
+    if (!username || !amount || Number(amount) <= 0) {
       return NextResponse.json({ error: "Faltan datos o el monto es inválido" }, { status: 400 });
     }
 
     const safeUsername = username.trim().toLowerCase();
 
-    // 1. Buscamos el ID del usuario en Ganamos
+    // 1. Buscamos el ID del usuario en Ganamos usando el helper blindado
     const saldoData = await getUsuarioSaldo(safeUsername);
     const userId = saldoData.id;
 
     // 2. Realizamos la operación de retiro (operation: 1 = OUTCOME)
+    // Nos aseguramos de enviar SOLO lo que el curl pide: operation y amount
     const paymentBody = {
       operation: 1, 
       amount: Number(amount)
     };
 
+    // Aseguramos que la URL termine en barra y pasamos el método POST explícito
     const ganamosResponse = await fetchGanamosAPI(`/api/agent_admin/user/${userId}/payment/`, {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify(paymentBody)
     });
 
+    // Control de errores de Ganamos
     if (ganamosResponse.status !== 0) {
       return NextResponse.json({ 
         error: `Ganamos rechazó el retiro: ${ganamosResponse.error_message || 'Error desconocido'}` 

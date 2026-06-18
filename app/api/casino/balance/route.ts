@@ -14,6 +14,8 @@ export async function GET(req: Request) {
     if (!username) return NextResponse.json({ error: "Falta el nombre de usuario" }, { status: 400 });
 
     // 🚀 Llamamos a la función que encadena la búsqueda del ID + la consulta del saldo
+
+    console.log("llego aca")
     const saldoData = await getUsuarioSaldo(username.trim());
 
     // Devolvemos el balance al frontend con el formato que ya esperas

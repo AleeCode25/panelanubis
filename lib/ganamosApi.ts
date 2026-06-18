@@ -1,138 +1,102 @@
 import dbConnect from "@/lib/mongodb";
 import Config from "@/models/Config";
 
-// Tus credenciales maestras de Ganamos (idealmente ponelas en tu .env)
 const GANAMOS_USER = process.env.GANAMOS_USER || "Anubis031";
 const GANAMOS_PASS = process.env.GANAMOS_PASS || "Fortuna1511_";
 
-// Los headers estrictos que sacamos del bash para que no nos tire error de request_from
+// Headers actualizados según tu último CURL exitoso
 const GANAMOS_HEADERS = {
   'accept': 'application/json, text/plain, */*',
-  'accept-language': 'es-ES,es;q=0.9',
+  'accept-language': 'es-419,es;q=0.9,en;q=0.8,fr;q=0.7,ru;q=0.6',
   'content-type': 'application/json;charset=UTF-8',
   'origin': 'https://agents.ganamosnet.org',
-  'referer': 'https://agents.ganamosnet.org/',
-  'sec-ch-ua': '"Google Chrome";v="147", "Not.A/Brand";v="8", "Chromium";v="147"',
+  'priority': 'u=1, i',
+  'referer': 'https://agents.ganamosnet.org/users/all',
+  'sec-ch-ua': '"Chromium";v="148", "Opera GX";v="132", "Not/A)Brand";v="99"',
   'sec-ch-ua-mobile': '?1',
-  'sec-ch-ua-platform': '"iOS"',
-  'user-agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1'
+  'sec-ch-ua-platform': '"Android"',
+  'sec-fetch-dest': 'empty',
+  'sec-fetch-mode': 'cors',
+  'sec-fetch-site': 'same-origin',
+  'user-agent': 'Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Mobile Safari/537.36'
 };
 
-/**
- * Función maestra para obtener el token válido
- */
+// Cookies de rastreo frescas (sin sesión) para saltar el Firewall
+const HARDCODED_TRACKING_COOKIES = "_ga=GA1.1.1924775346.1778017632; _ym_uid=1778795784175439850; _ym_d=1778795784; twk_uuid_6479ead6ad80445890f0a9e8=%7B%22uuid%22%3A%221.7xbICvIALHNrffUjCjdju6c6MVAV7031eyAu3fzJCtAxs3m3a4Z0W7ZNzku1iGcR72zDN7jXwrSQp0BtMv3f6uzrZ5sB0RC7PhPOD2720gEaYaUmwtgnz9VR%22%2C%22version%22%3A3%2C%22domain%22%3A%22ganamosnet.org%22%2C%22ts%22%3A1779519961370%7D; _clck=1eiyn5e%5E2%5Eg70%5E0%5E2360; spid=1781807599728_28f405a0a9a0ff6434dd3bf90d66ea0b_8rpuuc0gcjxd1cx9; spsc=1781808183155_02102f40359c46ca1da1b79984343b8e_Llb6hnkpzvmyLgzwApqrL4IpqPVUyHk82-qNYmYMtJAZ; _clsk=b6s00j%5E1781809755068%5E5%5E1%5Et.clarity.ms%2Fcollect; _ga_KVDL5XPDJM=GS2.1.s1781807768$o14$g1$t1781809754$j60$l0$h0";
+
 export async function getGanamosSessionToken() {
   await dbConnect();
-  const now = new Date();
-
-  // 1. Buscamos el token en la base de datos
   let sessionConfig = await Config.findOne({ key: 'ganamos_session' });
-
-  // 2. Si existe y vence en más de 1 hora, lo usamos
-  if (sessionConfig && sessionConfig.expiresAt > new Date(now.getTime() + 60 * 60 * 1000)) {
-    console.log("✅ Usando token de Ganamos desde MongoDB");
+  
+  if (sessionConfig && sessionConfig.expiresAt > new Date()) {
     return sessionConfig.value;
   }
-
-  // 3. Si no existe o está por expirar, hacemos Login en Ganamos
-  console.log("🔄 Generando nuevo token en Ganamos...");
   
+  // Login dinámico si el token expiró
   try {
     const response = await fetch('https://agents.ganamosnet.org/api/user/login', {
       method: 'POST',
-      headers: GANAMOS_HEADERS,
+      headers: { ...GANAMOS_HEADERS, 'Cookie': HARDCODED_TRACKING_COOKIES },
       body: JSON.stringify({ username: GANAMOS_USER, password: GANAMOS_PASS }),
       cache: 'no-store'
     });
 
     const data = await response.json();
+    if (data.status !== 0) throw new Error("Error en login de Ganamos");
 
-    if (data.status !== 0) {
-      throw new Error(`Error en login de Ganamos: ${data.error_message || 'Desconocido'}`);
-    }
+    const setCookie = response.headers.get('set-cookie');
+    const tokenExtraido = setCookie?.match(/session=([^;]+)/)?.[0] || "";
 
-    // Extraemos las cookies de los headers de respuesta
-    const setCookieHeader = response.headers.get('set-cookie');
-    if (!setCookieHeader) throw new Error("No se recibió la cookie de sesión de Ganamos");
-
-    // Buscamos la cookie que empieza con 'session=' y la cortamos hasta el punto y coma
-    const sessionMatch = setCookieHeader.match(/session=([^;]+)/);
-    if (!sessionMatch) throw new Error("No se encontró el token de sesión en las cookies");
-
-    const tokenExtraido = `session=${sessionMatch[1]}`;
-
-    // Calculamos vencimiento a 4 horas
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + 4);
 
-    // 4. Guardamos en MongoDB
-    await Config.findOneAndUpdate(
-      { key: 'ganamos_session' },
-      { 
-        value: tokenExtraido,
-        expiresAt: expiresAt 
-      },
-      { upsert: true, new: true }
-    );
-
-    console.log("💾 Nuevo token de Ganamos guardado por 4 horas");
+    await Config.findOneAndUpdate({ key: 'ganamos_session' }, { value: tokenExtraido, expiresAt }, { upsert: true });
     return tokenExtraido;
-
   } catch (error) {
-    console.error("🔥 Error crítico al conectar con Ganamos:", error);
-    throw error;
+    throw new Error("No se pudo refrescar la sesión en Ganamos.");
   }
 }
 
-/**
- * Función para hacer peticiones a la API de Ganamos ya autenticado
- */
 export async function fetchGanamosAPI(endpoint: string, options: RequestInit = {}) {
   const token = await getGanamosSessionToken();
+  const fullCookies = `${HARDCODED_TRACKING_COOKIES}; ${token}`; 
 
+  // Combinamos las opciones pasadas (method, body, etc) con nuestros headers y cookies
   const finalOptions: RequestInit = {
-    ...options,
-    headers: {
-      ...GANAMOS_HEADERS,
-      ...options.headers,
-      'Cookie': token // Inyectamos la sesión acá
-    }
+    ...options, // <--- ACÁ SE RECIBE EL METHOD: 'POST' Y EL BODY
+    headers: { 
+      ...GANAMOS_HEADERS, 
+      ...options.headers, // Combinamos con headers específicos si los hay
+      'Cookie': fullCookies 
+    },
+    redirect: 'manual'
   };
 
-  const url = `https://agents.ganamosnet.org${endpoint}`;
-  
-  const response = await fetch(url, finalOptions);
-  
-  // Si nos da 401, el token expiró prematuramente. Lo borramos para que se regenere la próxima.
-  if (response.status === 401) {
-    await Config.deleteOne({ key: 'ganamos_session' });
-    throw new Error("Token expirado (401). Se forzará relogin en el próximo intento.");
-  }
+  const response = await fetch(`https://agents.ganamosnet.org${endpoint}`, finalOptions);
 
-  return response.json();
+  const text = await response.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error(`Error: ${response.status} - ${text.substring(0, 50)}`);
+  }
 }
 
 export async function getUsuarioSaldo(username: string) {
-  // 1. Buscamos el usuario para obtener su ID
+  // Búsqueda ajustada a tu nuevo endpoint exitoso
   const searchResult = await fetchGanamosAPI(`/api/agent_admin/user/search/?username=${username}&is_direct_structure=false`);
   
-  if (searchResult.status !== 0 || !searchResult.result.data || searchResult.result.data.length === 0) {
-    throw new Error("Usuario no encontrado en Ganamos");
+  if (!searchResult.result?.data?.[0]) {
+    throw new Error("Usuario no encontrado");
   }
 
   const userId = searchResult.result.data[0].id;
-
-  // 2. Con el ID, buscamos el perfil completo (que incluye el balance)
   const userProfile = await fetchGanamosAPI(`/api/agent_admin/user/${userId}/`);
-
-  if (userProfile.status !== 0) {
-    throw new Error("No se pudo obtener el saldo del usuario");
-  }
 
   return {
     id: userId,
+    username: userProfile.result.user.username,
     balance: userProfile.result.user.balance,
-    bonus_balance: userProfile.result.user.bonus_balance,
-    username: userProfile.result.user.username
+    bonus_balance: userProfile.result.user.bonus_balance
   };
 }
