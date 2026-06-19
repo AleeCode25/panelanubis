@@ -1,11 +1,12 @@
 import dbConnect from "@/lib/mongodb";
 import Config from "@/models/Config";
+import axios from "axios";
 import { SocksProxyAgent } from 'socks-proxy-agent';
 
 const GANAMOS_USER = process.env.GANAMOS_USER || "Anubis031";
 const GANAMOS_PASS = process.env.GANAMOS_PASS || "Fortuna1511_";
 
-// Proxy SOCKS5 para salir con IP de USA y saltar bloqueos
+// Proxy SOCKS5 de tu proveedor
 const PROXY_URL = "socks5://XnDosS:xKeV65@23.236.128.44:8000";
 const agent = new SocksProxyAgent(PROXY_URL);
 
@@ -36,62 +37,80 @@ export async function getGanamosSessionToken() {
   }
   
   try {
-    const response = await fetch('https://agents.ganamosnet.org/api/user/login', {
-      method: 'POST',
-      headers: { ...GANAMOS_HEADERS, 'Cookie': HARDCODED_TRACKING_COOKIES },
-      body: JSON.stringify({ username: GANAMOS_USER, password: GANAMOS_PASS }),
-      // @ts-ignore
-      dispatcher: agent,
-      cache: 'no-store'
-    });
+    console.log("🔄 Intentando Login en Ganamos mediante Proxy SOCKS5...");
+    const response = await axios.post('https://agents.ganamosnet.org/api/user/login', 
+      { username: GANAMOS_USER, password: GANAMOS_PASS },
+      {
+        headers: { ...GANAMOS_HEADERS, 'Cookie': HARDCODED_TRACKING_COOKIES },
+        httpAgent: agent,
+        httpsAgent: agent,
+        timeout: 15000
+      }
+    );
 
-    const data = await response.json();
-    if (data.status !== 0) throw new Error("Error en login");
+    const data = response.data;
+    if (data.status !== 0) throw new Error(data.error_message || "Error en respuesta de login");
 
-    const setCookie = response.headers.get('set-cookie');
-    const tokenExtraido = setCookie?.match(/session=([^;]+)/)?.[0] || "";
+    const setCookie = response.headers['set-cookie'];
+    const cookieString = Array.isArray(setCookie) ? setCookie.join('; ') : setCookie || "";
+    const tokenExtraido = cookieString.match(/session=([^;]+)/)?.[0] || "";
+
+    if (!tokenExtraido) throw new Error("No se recibió la cookie 'session' de Ganamos");
 
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + 4);
 
     await Config.findOneAndUpdate({ key: 'ganamos_session' }, { value: tokenExtraido, expiresAt }, { upsert: true });
     return tokenExtraido;
-  } catch (error) {
-    throw new Error("No se pudo refrescar la sesión.");
+  } catch (error: any) {
+    // Imprime el error real en los logs de Hostinger para saber exactamente qué falló
+    console.error("🔥 Error real detectado en el túnel del Proxy:", error?.response?.data || error.message || error);
+    throw new Error("No se pudo refrescar la sesión en Ganamos. Revisá la consola de logs.");
   }
 }
 
-export async function fetchGanamosAPI(endpoint: string, options: RequestInit = {}) {
+export async function fetchGanamosAPI(endpoint: string, options: any = {}) {
   const token = await getGanamosSessionToken();
-  let currentCookies = `${HARDCODED_TRACKING_COOKIES}; ${token}`; 
+  const fullCookies = `${HARDCODED_TRACKING_COOKIES}; ${token}`; 
 
-  const finalOptions: RequestInit = {
-    ...options,
-    headers: { ...GANAMOS_HEADERS, ...options.headers, 'Cookie': currentCookies },
-    // @ts-ignore
-    dispatcher: agent, 
-    redirect: 'manual'
-  };
-
-  const url = `https://agents.ganamosnet.org${endpoint}`;
-  let response = await fetch(url, finalOptions);
-  
-  // Manejo de redirecciones del Firewall (307)
-  if (response.status === 307) {
-    const setCookiesArray = response.headers.getSetCookie ? response.headers.getSetCookie() : [];
-    let extraCookies = setCookiesArray.map(c => c.split(';')[0]).join('; ');
-    
-    if (extraCookies) {
-      finalOptions.headers = { ...finalOptions.headers, 'Cookie': `${currentCookies}; ${extraCookies}` };
-      response = await fetch(url, finalOptions);
-    }
-  }
-
-  const text = await response.text();
   try {
-    return JSON.parse(text);
-  } catch {
-    throw new Error(`Error ${response.status}: ${text.substring(0, 50)}`);
+    const response = await axios({
+      url: `https://agents.ganamosnet.org${endpoint}`,
+      method: options.method || 'GET',
+      headers: { ...GANAMOS_HEADERS, ...options.headers, 'Cookie': fullCookies },
+      data: options.body ? JSON.parse(options.body) : undefined,
+      httpAgent: agent,
+      httpsAgent: agent,
+      maxRedirects: 0, // Evita redirecciones automáticas (Manejo manual de 307)
+      validateStatus: (status) => status < 500 // Evita que Axios rompa en status 307
+    });
+
+    // Si salta el Firewall pidiendo cookies dinámicas extras (307)
+    if (response.status === 307) {
+      console.log("🛡️ Firewall interceptó petición (307). Extrayendo cookies dinámicas...");
+      const setCookie = response.headers['set-cookie'];
+      const setCookiesArray = Array.isArray(setCookie) ? setCookie : [setCookie || ""];
+      let extraCookies = setCookiesArray.map(c => c.split(';')[0]).join('; ');
+      
+      if (extraCookies) {
+        const newCookies = `${fullCookies}; ${extraCookies}`;
+        console.log("🔄 Reintentando petición con el set de cookies combinado...");
+        const retryResponse = await axios({
+          url: `https://agents.ganamosnet.org${endpoint}`,
+          method: options.method || 'GET',
+          headers: { ...GANAMOS_HEADERS, ...options.headers, 'Cookie': newCookies },
+          data: options.body ? JSON.parse(options.body) : undefined,
+          httpAgent: agent,
+          httpsAgent: agent
+        });
+        return retryResponse.data;
+      }
+    }
+
+    return response.data;
+  } catch (error: any) {
+    console.error(`❌ Error crítico en fetchGanamosAPI:`, error?.response?.data || error.message);
+    throw new Error(`Error en API Ganamos: ${error.message}`);
   }
 }
 
