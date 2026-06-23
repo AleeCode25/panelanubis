@@ -3,7 +3,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import dbConnect from "@/lib/mongodb";
 import Transferencia from "@/models/Transferencia";
-import { fetchGanamosAPI, getUsuarioSaldo } from "@/lib/ganamosApi";
+// 👇 Importamos los nuevos helpers limpios
+import { getUsuarioSaldo, retirarSaldoGanamos } from "@/lib/ganamosApi";
 
 export async function POST(req: Request) {
   try {
@@ -20,30 +21,16 @@ export async function POST(req: Request) {
 
     const safeUsername = username.trim().toLowerCase();
 
-    // 1. Buscamos el ID del usuario en Ganamos usando el helper blindado
+    // 1. Buscamos el ID numérico del usuario en Ganamos
     const saldoData = await getUsuarioSaldo(safeUsername);
     const userId = saldoData.id;
 
-    // 2. Realizamos la operación de retiro (operation: 1 = OUTCOME)
-    // Nos aseguramos de enviar SOLO lo que el curl pide: operation y amount
-    const paymentBody = {
-      operation: 1, 
-      amount: Number(amount)
-    };
-
-    // Aseguramos que la URL termine en barra y pasamos el método POST explícito
-    const ganamosResponse = await fetchGanamosAPI(`/api/agent_admin/user/${userId}/payment/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(paymentBody)
-    });
-
-    // Control de errores de Ganamos
-    if (ganamosResponse.status !== 0) {
+    // 2. Ejecutamos el retiro en la nueva API
+    try {
+      await retirarSaldoGanamos(userId, Number(amount));
+    } catch (ganamosError: any) {
       return NextResponse.json({ 
-        error: `Ganamos rechazó el retiro: ${ganamosResponse.error_message || 'Error desconocido'}` 
+        error: `Ganamos rechazó el retiro: ${ganamosError.message}` 
       }, { status: 400 });
     }
 

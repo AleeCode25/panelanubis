@@ -204,36 +204,6 @@ export default function Home() {
     fetchData();
   };
 
-  // 👇 Lógica para reparar el panel forzando nuevo login en Ganamos
-  const handleRepararPanel = async () => {
-    const result = await Swal.fire({
-      title: '¿Reparar Conexión?',
-      text: "Esto limpiará la sesión actual con Ganamos y generará una nueva automáticamente. Usalo si tira errores 400 o 500.",
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#ef4444',
-      cancelButtonColor: '#374151',
-      confirmButtonText: 'Sí, reparar',
-      cancelButtonText: 'Cancelar'
-    });
-
-    if (result.isConfirmed) {
-      Swal.fire({ title: 'Reparando...', text: 'Generando nuevo token...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-      try {
-        const res = await fetch('/api/admin/repair', { method: 'POST' });
-        const data = await res.json();
-        
-        if (res.ok) {
-          Swal.fire({ icon: 'success', title: '¡Panel Reparado!', text: 'Ya puedes operar normalmente.', timer: 2000, showConfirmButton: false });
-        } else {
-          Swal.fire({ icon: 'error', title: 'Fallo al reparar', text: data.error });
-        }
-      } catch (e) {
-        Swal.fire({ icon: 'error', title: 'Error de Red', text: 'No se pudo contactar al servidor.' });
-      }
-    }
-  };
-
   if (status === "loading") {
     return (
       <div className="min-h-screen bg-gray-950 flex flex-col items-center justify-center text-white">
@@ -294,11 +264,6 @@ export default function Home() {
 
           <button onClick={() => setShowCierreModal(true)} className="bg-yellow-600/20 text-yellow-500 border border-yellow-500/30 px-3 py-2 rounded-xl text-[10px] font-black uppercase transition-all hover:bg-yellow-600 hover:text-white">🔒 Turno</button>
           
-          {/* 👇 BOTÓN REPARAR PANEL 👇 */}
-          <button onClick={handleRepararPanel} className="bg-red-600/20 text-red-500 border border-red-500/30 px-3 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-red-600 hover:text-white transition-all">
-            🛠️ Reparar Panel
-          </button>
-
           <button onClick={() => signOut()} className="bg-gray-800 text-gray-500 px-3 py-2 rounded-xl text-[10px] font-black uppercase hover:text-white transition-all">Salir</button>
         </div>
       </div>
