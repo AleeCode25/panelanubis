@@ -3,7 +3,8 @@ import dbConnect from "@/lib/mongodb";
 import Transferencia from "@/models/Transferencia";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { fetchGanamosAPI, getUsuarioSaldo } from "@/lib/ganamosApi";
+// 👇 Importamos las funciones de la nueva API limpia
+import { getUsuarioSaldo, cargarSaldoGanamos } from "@/lib/ganamosApi";
 
 export async function POST(req: Request) {
   try {
@@ -21,30 +22,29 @@ export async function POST(req: Request) {
     const monto = tipo === 'CANAL' ? 1000 : 500;
 
     // 1. Obtener ID de usuario en Ganamos
-    const usuarioData = await getUsuarioSaldo(safeUsername);
-    const userId = usuarioData.id;
+    let userId;
+    try {
+      const usuarioData = await getUsuarioSaldo(safeUsername);
+      userId = usuarioData.id;
+    } catch (e) {
+      return NextResponse.json({ error: "Usuario no encontrado en Ganamos" }, { status: 404 });
+    }
 
     if (!userId) {
       return NextResponse.json({ error: "Usuario no encontrado en Ganamos" }, { status: 404 });
     }
 
-    // 2. Realizar la carga usando el endpoint de /payment/
-    // La estructura requerida según tu curl es: /api/agent_admin/user/{userId}/payment/
-    const ganamosResponse = await fetchGanamosAPI(`/api/agent_admin/user/${userId}/payment/`, {
-      method: 'POST',
-      body: JSON.stringify({
-        operation: 0, // 0 parece ser el código para ingreso/carga
-        amount: monto
-      })
-    });
-
-    // 3. Verificamos respuesta
-    // Si la API devuelve un objeto con error o un status distinto al esperado
-    if (ganamosResponse && ganamosResponse.error) {
-      return NextResponse.json({ error: `Ganamos rechazó: ${ganamosResponse.error_message || "Error desconocido"}` }, { status: 400 });
+    // 2. Realizar la carga usando el nuevo endpoint limpio
+    try {
+      // Le mandamos el userId, el monto base, 0 de bono fijo y 0 de bono porcentual
+      await cargarSaldoGanamos(userId, monto, 0, 0);
+    } catch (ganamosError: any) {
+      return NextResponse.json({ 
+        error: `Ganamos rechazó la carga especial: ${ganamosError.message}` 
+      }, { status: 400 });
     }
 
-    // 4. Registrar en nuestra BD
+    // 3. Registrar en nuestra BD
     const timestamp = Date.now();
     await Transferencia.create({
       remitente: tipo,
